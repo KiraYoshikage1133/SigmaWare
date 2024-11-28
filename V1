@@ -1,0 +1,92 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local isLocked = false
+local targetPlayer = nil
+local highlight = nil
+
+local function createHighlight(target)
+	if highlight then
+		highlight:Destroy()
+	end
+	
+	highlight = Instance.new("Highlight")
+	highlight.Parent = target.Character
+	highlight.Adornee = target.Character
+	highlight.FillColor = Color3.new(1, 0, 0)
+	highlight.OutlineColor = Color3.new(1, 1, 1)
+	highlight.FillTransparency = 0.5
+	highlight.OutlineTransparency = 0
+end
+
+local function removeHighlight()
+	if highlight then 
+		highlight:Destroy()
+		highlight = nil
+	end
+end
+
+local function isOnSameTeam(otherPlayer)
+	if Players.LocalPlayer and otherPlayer.Team then
+		return Players.LocalPlayer.Team == otherPlayer.Team
+	end
+	return false
+end
+
+local function getClosestPlayer()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+	
+	for _, otherPlayer in pairs(Players:GetPlayers()) do
+		if otherPlayer ~= player and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+			if not isOnSameTeam(otherPlayer) then
+				local distance = (player.Character.HumanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).magnitude
+				if distance < shortestDistance then
+					shortestDistance = distance
+					closestPlayer = otherPlayer
+				end
+			end
+		end
+	end
+	
+	return closestPlayer
+end
+
+local function lockOntoClosestPlayer()
+	targetPlayer = getClosestPlayer()
+	if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+		isLocked = true
+		createHighlight(targetPlayer)
+		RunService:BindToRenderStep("LockOnPlayer", Enum.RenderPriority.Camera.Value + 1, function()
+			if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+				camera.CFrame = CFrame.new(camera.CFrame.Position, targetPlayer.Character.Head.Position)
+			else
+				isLocked = false
+				removeHighlight()
+				RunService:UnbindFromRenderStep("LockOnPlayer")
+			end
+		end)
+	end
+end
+
+local function unlockCamera()
+	isLocked = false
+	RunService:UnbindFromRenderStep("LockOnPlayer")
+	removeHighlight()
+	targetPlayer = nil
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if not gameProcessed and input.KeyCode == Enum.KeyCode.Q then
+		if isLocked then
+			unlockCamera()
+		else
+			lockOntoClosestPlayer()
+		end
+	end
+end)
+print("SigmaWare V1 is executed succesfully! Press Q to toggle Aimbot and WallHack")
